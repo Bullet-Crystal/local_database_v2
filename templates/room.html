@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Database</title>
+    <style>
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px #00d1b2; }
+            50% { box-shadow: 0 0 10px #00d1b2, 0 0 5px #00f5e1; }
+            100% { box-shadow: 0 0 5px #00d1b2; }
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Consolas';
+            background: radial-gradient(circle, #282852, #12121a);
+            color: #f0f0f0;
+            padding: 20px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            color: #00f5e1;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00f5e1, 0 0 20px #00b29a;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 24px;
+            color: #00f5e1;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            background: rgba(42, 42, 64, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 255, 200, 0.3);
+            flex-wrap: wrap;
+            animation: fadeInUp 1.2s ease-out;
+        }
+
+        .upload, .downloads {
+            flex: 1 1 300px;
+            background: linear-gradient(135deg, #2c2c44, #3d3d5e);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 255, 200, 0.2);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="file"], input[type="text"] {
+            margin-bottom: 20px;
+            padding: 10px;
+            width: 100%;
+            max-width: 300px;
+            border: none;
+            border-radius: 5px;
+            background-color: #1e1e2f;
+            color: #00f5e1;
+        }
+
+        input[type="submit"] {
+            padding: 10px 20px;
+            background-color: #00d1b2;
+            color: #282852;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #00f5e1;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            text-align: center;
+        }
+
+        ul li {
+            margin: 10px 0;
+        }
+
+        ul li a {
+            color: #00f5e1;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        ul li a:hover {
+            color: #ffffff;
+            text-shadow: 0 0 10px #00f5e1;
+        }
+
+        .status {
+            text-align: center;
+            margin: 15px;
+            color: #00f5e1;
+        }
+
+        .error {
+            color: red;
+        }
+
+        @media (max-width: 767px) {
+            .container {
+                flex-direction: column;
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Private Database</h1>
+    <h2>Room: {{ room_name }}</h2>
+
+    <div class="container">
+        <div class="upload">
+            <h2>Upload a File</h2>
+            <form action="/order/{{room_name}}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="file" name="file" id="file" required>
+                <input type="submit" value="Upload">
+            </form>
+            <progress id="progressBar" value="0" max="100" style="display: none;width: 100%;"></progress>
+            <p id="status"></p>
+        </div>
+
+        <div class="downloads" >
+            <h2>Available Files</h2>
+            <ul id="downloads">
+                {% for file in files %}
+                    <li><a href="/download/{{room_name}}?filename={{ file }}">{{ file }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="/" style="color:#00f5e1; text-decoration: underline;">⬅ Back to Home</a>
+    </div>
+    <script src="../static/js/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const downloads = document.getElementById('downloads');
+
+        socket.on('upload_room_complete', (data) => {
+            downloads.innerHTML = "";
+            data.files.forEach(file => {
+                downloads.innerHTML += `<li><a href=/download/{{room_name}}?filename=${file}>${file}</a></li>`;
+            });
+        });
+    </script>
+    <script>
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/order/{{room_name}}', true);
+
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('status');
+        progressBar.style.display = 'block';
+
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.value = percent;
+                statusText.innerText = `${percent}% uploaded`;
+            }
+        });
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                statusText.innerText = 'Upload complete!';
+                progressBar.value = 100;
+                fileInput.value = '';
+            } else {
+                statusText.innerText = 'Upload failed.';
+            }
+        };
+
+        xhr.onerror = function() {
+            statusText.innerText = 'Error during upload.';
+        };
+
+        xhr.send(formData);
+    });
+    </script>
+</body>
+</html>
