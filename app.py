@@ -17,7 +17,7 @@ def get_room_path(room_name):
 @app.route('/')
 def index():
     files = os.listdir(get_room_path(PUBLIC_ROOM))
-    return render_template('index.html', files=files, rooms=sorted(set(os.listdir(os.path.join(DOWNLOAD_DIR)))))
+    return render_template('index.html', files=files, rooms=sorted(set(os.listdir(DOWNLOAD_DIR))))
 
 
 @app.route('/order', methods=['POST'])
@@ -29,7 +29,7 @@ def order_public():
     try:
         filename = secure_filename(file.filename)
         file.save(os.path.join(get_room_path(PUBLIC_ROOM), filename))
-        socketio.emit('upload_complete', {'files': sorted(set(os.listdir(os.path.join(DOWNLOAD_DIR,'public'))))})
+        socketio.emit('upload_complete', {'files': sorted(set(os.listdir(get_room_path(PUBLIC_ROOM))))})
         return 'ok',200
     except Exception as e:
         app.logger.error(f"Error saving public file: {e}")
@@ -47,7 +47,7 @@ def order_room(room_name):
         os.makedirs(room_path, exist_ok=True)
         filename = secure_filename(file.filename)
         file.save(os.path.join(room_path, filename))
-        socketio.emit('upload_room_complete', {'files': sorted(set(os.listdir(os.path.join(DOWNLOAD_DIR,room_name))))})
+        socketio.emit('upload_room_complete', {'files': sorted(set(os.listdir(get_room_path(room_name))))})
         return 'ok',200
     except Exception as e:
         app.logger.error(f"Error saving file to room {room_name}: {e}")
@@ -66,7 +66,7 @@ def create_room():
     room_name = request.form.get('room_name')
     if room_name:
         os.makedirs(get_room_path(room_name), exist_ok=True)
-        socketio.emit('room_added', {'rooms': sorted(set(os.listdir(get_room_path(room_name))))})
+        socketio.emit('room_added', {'rooms': sorted(set(os.listdir(DOWNLOAD_DIR)))})
     return jsonify({'message':'ok'})
 
 
